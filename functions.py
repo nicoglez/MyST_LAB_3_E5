@@ -18,7 +18,7 @@ def f_leer_archivo(param_archivo: str) -> pd.DataFrame:
     data.rename(columns=dict(zip(data.columns.values, col_names)), inplace=True) 
     # Quitar rows que no necesitamos, quitando aquellas que no afectan la posicion, de ordenes para adelante (español o ingles)
     # Metratrader 5
-    if np.argmax(data.iloc[:, 0].values == "Orders") != 0:
+    if np.argmax(data.iloc[:, 0].values == "Orders") != 0 or np.argmax(data.iloc[:, 0].values == "Órdenes") != 0:
         data = data.iloc[:np.argmax(data.iloc[:, 0].values == "Orders"), 0:-2] \
             if sum(data.iloc[:, 0].values == "Orders") == 1 \
             else data.iloc[:np.argmax(data.iloc[:, 0].values == "Órdenes"), 0:-2]
@@ -44,5 +44,5 @@ def f_pip_size(param_ins: str) -> float:
     if len(param_ins) == 6:
         param_ins = param_ins[0:3] + "/" + param_ins[3:]
 
-        # Obtener informacion de pips del csv, regresar multiplicador 100 si no hay datos
+    # Obtener informacion de pips del csv, regresar multiplicador 100 si no hay datos
     return 100 if sum(pip_data.iloc[:, 1] == param_ins) == 0 else 1/pip_data.iloc[np.argmax(pip_data.iloc[:, 1] == param_ins), 3]
