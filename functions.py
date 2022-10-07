@@ -3,7 +3,7 @@ import numpy as np
 import warnings
 
 
-# Archivo para leer xlsx de MT5
+# Archivo para leer xlsx de MT5 o MT4
 def f_leer_archivo(param_archivo: str) -> pd.DataFrame:
     
     # Nombre de columnas en Ingles
@@ -17,13 +17,16 @@ def f_leer_archivo(param_archivo: str) -> pd.DataFrame:
     # Renombrar columnas si no estan en         
     data.rename(columns=dict(zip(data.columns.values, col_names)), inplace=True) 
     # Quitar rows que no necesitamos, quitando aquellas que no afectan la posicion, de ordenes para adelante (español o ingles)
-    data = data.iloc[:np.argmax(data.iloc[:, 0].values == "Orders"), 0:-3] \
-                    if sum(data.iloc[:, 0].values == "Orders")==1 \
-                    else data.iloc[:np.argmax(data.iloc[:, 0].values == "Órdenes"), 0:-3]
-    # Quitar blanks: comisiones y swaps`
-    data = data[data.columns.drop(["Commission", "Swap"])]
-        
-        
+    # Metratrader 5
+    if np.argmax(data.iloc[:, 0].values == "Orders") != 0:
+        data = data.iloc[:np.argmax(data.iloc[:, 0].values == "Orders"), 0:-2] \
+            if sum(data.iloc[:, 0].values == "Orders") == 1 \
+            else data.iloc[:np.argmax(data.iloc[:, 0].values == "Órdenes"), 0:-2]
+
+    # Metatrader 4
+    else:
+        data = data.iloc[:-sum([type(i) == float for i in data.iloc[:, 0].values]), 0:-2]
+
     # Regresar DataFrame
     return data
 
@@ -32,6 +35,10 @@ def f_leer_archivo(param_archivo: str) -> pd.DataFrame:
 def f_pip_size(param_ins: str) -> float:
     # Leer archivo con informacion de los pips
     pip_data = pd.read_csv("files/instruments_pips.csv")
+    # Hacer tickets todos mayusculas para comparar params en mayusculas
+    pip_data.iloc[:, 1] = [pip.upper() for pip in pip_data.iloc[:, 1]]
+    # Hacer params mayusculas
+    param_ins = param_ins.upper()
 
     # Ver si es divisa para añadir /
     if len(param_ins) == 6:
