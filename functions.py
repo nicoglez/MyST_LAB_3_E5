@@ -20,7 +20,7 @@ def f_leer_archivo(param_archivo: str) -> pd.DataFrame:
     data = data.iloc[:np.argmax(data.iloc[:, 0].values == "Orders"), 0:-3] \
                     if sum(data.iloc[:, 0].values == "Orders")==1 \
                     else data.iloc[:np.argmax(data.iloc[:, 0].values == "Órdenes"), 0:-3]
-    # Quitar blanks: comisiones y swaps
+    # Quitar blanks: comisiones y swaps`
     data = data[data.columns.drop(["Commission", "Swap"])]
         
         
