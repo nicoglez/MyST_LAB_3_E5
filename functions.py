@@ -56,3 +56,27 @@ def f_columnas_tiempos(param_data: pd.DataFrame):
     data["Opentime"] = pd.to_datetime(data['Opentime'])
     data["Closetime"] = pd.to_datetime(data['Closetime'])
     return data
+
+# Función agrega columnas de pips
+def f_columnas_pips(param_data: pd.DataFrame) -> pd.DataFrame:
+    # Transponer para usar .loc
+    param_data = param_data.T
+    # Crear lista que tendra la informacion de los pips
+    pips = []
+    
+    for position in range(len(param_data.T)):
+        # Obtener multiplicador de la postura que estamos viendo
+        multiplier = f_pip_size(param_data.loc["Symbol"][position])
+        # Obtener pips
+        if param_data.loc["Type"][position] == "buy":
+            pips.append((param_data.loc["Closeprice"][position] - param_data.loc["Openprice"][position]) * multiplier)
+        else:
+            pips.append((param_data.loc["Openprice"][position] - param_data.loc["Closeprice"][position]) * multiplier)
+
+   # Agregar columnas a df
+    param_data = param_data.T
+    param_data['pips'] = pips
+    param_data['pips_acm'] = param_data['pips'].cumsum()
+    param_data['profit_acm'] = param_data['Profit'].cumsum()
+    
+    return param_data    
