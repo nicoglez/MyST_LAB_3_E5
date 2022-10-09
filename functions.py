@@ -46,3 +46,13 @@ def f_pip_size(param_ins: str) -> float:
 
     # Obtener informacion de pips del csv, regresar multiplicador 100 si no hay datos
     return 100 if sum(pip_data.iloc[:, 1] == param_ins) == 0 else 1/pip_data.iloc[np.argmax(pip_data.iloc[:, 1] == param_ins), 3]
+
+# Funcion que crea la columna tiempo
+def f_columnas_tiempos(param_data: pd.DataFrame):
+    data = param_data
+    # Convertimos fechas de apertura y cierre para encontrar la diferencia y saber cuanto duró abierta la posición
+    data["tiempo"] = (pd.to_datetime(data['Closetime']) - pd.to_datetime(data['Opentime'])).astype('timedelta64[s]')
+    # Convertimos "Opentime" y "Closetime" a tipo datetime 
+    data["Opentime"] = pd.to_datetime(data['Opentime'])
+    data["Closetime"] = pd.to_datetime(data['Closetime'])
+    return data
