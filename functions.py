@@ -79,4 +79,33 @@ def f_columnas_pips(param_data: pd.DataFrame) -> pd.DataFrame:
     param_data['pips_acm'] = param_data['pips'].cumsum()
     param_data['profit_acm'] = param_data['Profit'].cumsum()
     
-    return param_data    
+    return param_data
+
+
+# Funcion para obtener metricas de cuenta de trading
+def f_estadisticas_ba(param_data: pd.DataFrame) -> dict:
+
+    ########## CREAR DF 2
+    # Crear set con valores unicos de las monedas tradeadas
+    unique_instruments = set(param_data.T.loc["Symbol"])
+
+    # Crear lista a rellenar
+    performance_list = []
+
+    # Iterar cada instrumento para encontrar su ratio de efectividad
+    for sym in unique_instruments:
+        # DF temporal con x insturmento filtrado
+        temp_param_data = param_data[param_data.T.loc["Symbol"] == sym]
+        # Encontrar performance de instrumento
+        performance_list.append(
+            round(sum([1 for i in temp_param_data.T.loc["Profit"] if i > 0]) / len(temp_param_data) * 100, 2))
+
+    # Crear df de ranking
+    df_2_ranking = pd.DataFrame()
+    df_2_ranking["symbol"] = list(unique_instruments)
+    df_2_ranking["rank"] = performance_list
+    # Ordenar de mayor a menor
+    df_2_ranking.sort_values("rank", inplace=True, ascending=False)
+
+    ########### REGREASAR DF con diccionario
+    return {"df_2_ranking": df_2_ranking}
