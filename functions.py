@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import warnings
+import datetime
 
 
 # Archivo para leer xlsx de MT5 o MT4
@@ -132,3 +133,17 @@ def f_estadisticas_ba(param_data: pd.DataFrame) -> dict:
 
     ########### REGREASAR DF con diccionario
     return {"df_1_tabla": df_1_tabla, "df_2_ranking": df_2_ranking}
+
+# Función evolucion del capital
+def f_evolucion_capital(param_data: pd.DataFrame):
+    # Cambiar formato de columnas para no aparezca hora, solo fecha
+    param_data["Opentime"] = param_data["Opentime"].apply(lambda x: x.date()) if type(param_data.iloc[0,0]) != datetime.date \
+                                                                              else param_data["Opentime"]
+    # Hacer pivote para dejar la suma del profit por fecha
+    pivot = param_data.pivot_table(values="Profit", index="Opentime", aggfunc=sum).reset_index()
+    # Renombrar columnas
+    pivot.columns = ["timestamp", "profit_d"]
+    # Hacer suma acumulada de profit diario
+    pivot["profit_d_acum"] = pivot["profit_d"].cumsum() + 100000
+    
+    return pivot
