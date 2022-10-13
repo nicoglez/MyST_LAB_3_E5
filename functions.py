@@ -1,4 +1,5 @@
 import pandas as pd
+import pandas_datareader.data as web
 import numpy as np
 import warnings
 import datetime
@@ -147,3 +148,49 @@ def f_evolucion_capital(param_data: pd.DataFrame):
     pivot["profit_d_acum"] = pivot["profit_d"].cumsum() + 100000
     
     return pivot
+
+# Función para descargar precio o precios de cierre
+def get_adj_closes(tickers: str, start_date: str = None, end_date: Optional[str] = None, freq: str = 'd'):
+    # Bajar solo un dato si end_date no se da
+    end_date = end_date if end_date else start_date or None
+    # Bajar cierre de precio ajustado
+    closes = web.YahooDailyReader(symbols=tickers, start=start_date, end=end_date, interval=freq).read()['Adj Close']
+    # Poner indice de forma ascendente
+    closes.sort_index(inplace=True)
+    return closes
+
+
+def f_estadisticas_mad(evolucion):
+    # Obtener metricas del portafolio
+    mean_log_portafolio = np.log(evolucion["profit_d_acum"] / evolucion["profit_d_acum"].shift()).dropna().mean()
+    rf = .05 / 365 * len(evolucion)
+    sdport = np.log(evolucion["profit_d_acum"] / evolucion["profit_d_acum"].shift()).dropna().std()
+    if len(np.log(evolucion["profit_d_acum"] / evolucion["profit_d_acum"].shift()).dropna()) == 1:
+        sdport = 0
+
+    # Obtener datos historicos del SP500 y calcular sus metricas
+    SP_data = pd.DataFrame([get_adj_closes(tickers="^GSPC", start_date=date)[0] for date in evolucion["timestamp"]])
+    mean_log_SP = np.log(SP_data / SP_data.shift()).dropna().mean()
+    sd_port_SP = (np.array(evolucion["profit_d_acum"]) - np.array(SP_data)).std()
+
+    # Calcular sharpe original y actualizado
+    sharpe_original = 0 if sdport == 0 else round((mean_log_portafolio - rf) / sdport, 5)
+    sharpe_actualizado = round(float((mean_log_portafolio - mean_log_SP) / sd_port_SP), 5)
+
+    # Calcular Drawdown y Fechas
+    date_1_dd = evolucion.iloc[np.argmax(evolucion["profit_d_acum"]), 0]
+    date_2_dd = evolucion.iloc[
+        np.argmax(evolucion["profit_d_acum"] == min(evolucion.iloc[np.argmax(evolucion["profit_d_acum"]):, 2])), 0]
+    drawn_down = round(
+        min(evolucion.iloc[np.argmax(evolucion["profit_d_acum"]):, 2]) / max(evolucion["profit_d_acum"]) - 1, 5)
+
+    # Calcular Drawnup y Fechas
+    date_1_du = evolucion.iloc[np.argmin(evolucion["profit_d_acum"]), 0]
+    date_2_du = evolucion.iloc[
+        np.argmax(evolucion["profit_d_acum"] == max(evolucion.iloc[np.argmin(evolucion["profit_d_acum"]):, 2])), 0]
+    drawn_up = round(
+        max(evolucion.iloc[np.argmin(evolucion["profit_d_acum"]):, 2]) / min(evolucion["profit_d_acum"]) - 1, 5)
+
+
+
+
