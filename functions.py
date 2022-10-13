@@ -79,4 +79,56 @@ def f_columnas_pips(param_data: pd.DataFrame) -> pd.DataFrame:
     param_data['pips_acm'] = param_data['pips'].cumsum()
     param_data['profit_acm'] = param_data['Profit'].cumsum()
     
-    return param_data    
+    return param_data
+
+
+# Funcion para obtener metricas de cuenta de trading
+def f_estadisticas_ba(param_data: pd.DataFrame) -> dict:
+    
+    ######## CREAR DF 1
+    # Hacer nuevos dfs uno de operaciones largas y otro de cortas
+    compras = param_data[param_data.T.loc["Type"] == "buy"]
+    ventas = param_data[param_data.T.loc["Type"] == "sell"]
+
+   # Crear tabla con metricas
+    df_1_tabla = pd.DataFrame(index=["medida", "valor", "descripcion"])
+    df_1_tabla["1"] = ["Ops totales", len(param_data), "Operaciones totales"]
+    df_1_tabla["2"] = ["Ganadoras", sum([1 for i in param_data.T.loc["Profit"] if i > 0]), "Operaciones ganadoras"]
+    df_1_tabla["3"] = ["Ganadoras_c",  sum([1 for i in compras.T.loc["Profit"] if i > 0]), "Operaciones ganadoras de compra"]
+    df_1_tabla["4"] = ["Ganadoras_v",  sum([1 for i in ventas.T.loc["Profit"] if i > 0]), "Operaciones ganadoras de venta"]
+    df_1_tabla["5"] = ["Perdedoras", sum([1 for i in param_data.T.loc["Profit"] if i < 0]), "Operaciones perdedoras"]
+    df_1_tabla["6"] = ["Perdedoras_c",  sum([1 for i in compras.T.loc["Profit"] if i < 0]), "Operaciones perdedoras de compra"]
+    df_1_tabla["7"] = ["Perdedoras_v",  sum([1 for i in ventas.T.loc["Profit"] if i < 0]), "Operaciones perdedoras de venta"]
+    df_1_tabla["8"] = ["Mediana (Profit)", np.percentile(param_data.T.loc["Profit"], 50), "Mediana de profit de operaciones"]
+    df_1_tabla["9"] = ["Mediana (Pips)", np.percentile(param_data.T.loc["pips"], 50), "Mediana de pips de operaciones"]
+    df_1_tabla["10"] = ["r_efectividad", sum([1 for i in param_data.T.loc["Profit"] if i > 0])/len(param_data), "Ganadoras Totales/Operaciones Totales"]
+    df_1_tabla["11"] = ["r_proporcion", sum([1 for i in param_data.T.loc["Profit"] if i > 0])/sum([1 for i in param_data.T.loc["Profit"] if i < 0]), "Ganadoras Totales/Perdedoras Totales"]
+    df_1_tabla["12"] = ["r_efectividad_c", sum([1 for i in compras.T.loc["Profit"] if i > 0])/len(compras), "Ganadoras Compras/Operaciones Totales"]
+    df_1_tabla["13"] = ["r_efectividad_v", sum([1 for i in ventas.T.loc["Profit"] if i > 0])/len(ventas), "Ganadoras Ventas/ Operaciones Totales"]
+   # Transponer
+    df_1_tabla = df_1_tabla.T
+    
+    ########## CREAR DF 2
+    # Crear set con valores unicos de las monedas tradeadas
+    unique_instruments = set(param_data.T.loc["Symbol"])
+
+    # Crear lista a rellenar
+    performance_list = []
+
+    # Iterar cada instrumento para encontrar su ratio de efectividad
+    for sym in unique_instruments:
+        # DF temporal con x insturmento filtrado
+        temp_param_data = param_data[param_data.T.loc["Symbol"] == sym]
+        # Encontrar performance de instrumento
+        performance_list.append(
+            round(sum([1 for i in temp_param_data.T.loc["Profit"] if i > 0]) / len(temp_param_data) * 100, 2))
+
+    # Crear df de ranking
+    df_2_ranking = pd.DataFrame()
+    df_2_ranking["symbol"] = list(unique_instruments)
+    df_2_ranking["rank"] = performance_list
+    # Ordenar de mayor a menor
+    df_2_ranking.sort_values("rank", inplace=True, ascending=False)
+
+    ########### REGREASAR DF con diccionario
+    return {"df_1_tabla": df_1_tabla, "df_2_ranking": df_2_ranking}
