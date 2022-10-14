@@ -159,7 +159,6 @@ def get_adj_closes(tickers: str, start_date: str = None, end_date: Optional[str]
     closes.sort_index(inplace=True)
     return closes
 
-
 def f_estadisticas_mad(evolucion):
     # Obtener metricas del portafolio
     mean_log_portafolio = np.log(evolucion["profit_d_acum"] / evolucion["profit_d_acum"].shift()).dropna().mean()
@@ -190,6 +189,19 @@ def f_estadisticas_mad(evolucion):
         np.argmax(evolucion["profit_d_acum"] == max(evolucion.iloc[np.argmin(evolucion["profit_d_acum"]):, 2])), 0]
     drawn_up = round(
         max(evolucion.iloc[np.argmin(evolucion["profit_d_acum"]):, 2]) / min(evolucion["profit_d_acum"]) - 1, 5)
+
+      # Armar df
+    df = pd.DataFrame(index=("valor", "descripcion"))
+    df["sharpe_original"] = [sharpe_original, "Sharpe Ratio Fórmula Original"]
+    df["sharpe_actualizado"] = [sharpe_actualizado, "Sharpe Ratio Fórmula Ajustada"]
+    df["drawndown_f1"] = [date_1_dd, "Fecha inicial del DrawDown de Capital"]
+    df["drawndown_f2"] = [date_2_dd, "Fecha final del DrawDown de Capital"]
+    df["drawndown_capi"] = [drawn_down, "Máxima pérdida flotante registrada"]
+    df["drawnup_f1"] = [date_1_du, "Fecha inicial del DrawUp de Capital"]
+    df["drawnup_f2"] = [date_2_du, "Fecha final del DrawUp de Capital"]
+    df["drawnup_capi"] = [drawn_up, "Máxima ganancia flotante registrada"]
+    
+    return df.T
 
 
 
