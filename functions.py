@@ -3,6 +3,7 @@ import pandas_datareader.data as web
 import numpy as np
 import warnings
 import datetime
+from typing import Optional
 
 
 # Archivo para leer xlsx de MT5 o MT4
@@ -159,6 +160,7 @@ def get_adj_closes(tickers: str, start_date: str = None, end_date: Optional[str]
     closes.sort_index(inplace=True)
     return closes
 
+# Funcion para obtener metricas de nuestra estrategia
 def f_estadisticas_mad(evolucion):
     # Obtener metricas del portafolio
     mean_log_portafolio = np.log(evolucion["profit_d_acum"] / evolucion["profit_d_acum"].shift()).dropna().mean()
@@ -202,7 +204,3 @@ def f_estadisticas_mad(evolucion):
     df["drawnup_capi"] = [drawn_up, "Máxima ganancia flotante registrada"]
     
     return df.T
-
-
-
-
