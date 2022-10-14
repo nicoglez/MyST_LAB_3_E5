@@ -139,15 +139,17 @@ def f_estadisticas_ba(param_data: pd.DataFrame) -> dict:
 # Función evolucion del capital
 def f_evolucion_capital(param_data: pd.DataFrame):
     # Cambiar formato de columnas para no aparezca hora, solo fecha
-    param_data["Opentime"] = param_data["Opentime"].apply(lambda x: x.date()) if type(param_data.iloc[0,0]) != datetime.date \
-                                                                              else param_data["Opentime"]
+    param_data["by_day"] = param_data["Opentime"]
+    param_data["by_day"] = param_data["by_day"].apply(lambda x: x.date()) if type(
+        param_data.iloc[0, 0]) != datetime.date \
+        else param_data["by_day"]
     # Hacer pivote para dejar la suma del profit por fecha
-    pivot = param_data.pivot_table(values="Profit", index="Opentime", aggfunc=sum).reset_index()
+    pivot = param_data.pivot_table(values="Profit", index="by_day", aggfunc=sum).reset_index()
     # Renombrar columnas
     pivot.columns = ["timestamp", "profit_d"]
     # Hacer suma acumulada de profit diario
     pivot["profit_d_acum"] = pivot["profit_d"].cumsum() + 100000
-    
+
     return pivot
 
 # Función para descargar precio o precios de cierre
