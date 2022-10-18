@@ -24,13 +24,13 @@ def f_leer_archivo(param_archivo: str) -> pd.DataFrame:
     # Quitar rows que no necesitamos, quitando aquellas que no afectan la posicion, de ordenes para adelante (español o ingles)
     # Metratrader 5
     if np.argmax(data.iloc[:, 0].values == "Orders") != 0 or np.argmax(data.iloc[:, 0].values == "Órdenes") != 0:
-        data = data.iloc[:np.argmax(data.iloc[:, 0].values == "Orders"), 0:-3] \
+        data = data.iloc[:np.argmax(data.iloc[:, 0].values == "Orders"), 0:-2] \
             if sum(data.iloc[:, 0].values == "Orders") == 1 \
-            else data.iloc[:np.argmax(data.iloc[:, 0].values == "Órdenes"), 0:-3]
+            else data.iloc[:np.argmax(data.iloc[:, 0].values == "Órdenes"), 0:-2]
 
     # Metatrader 4
     else:
-        data = data.iloc[:-sum([type(i) == float for i in data.iloc[:, 0].values]), 0:-3]
+        data = data.iloc[:-sum([type(i) == float for i in data.iloc[:, 0].values]), 0:-2]
 
     # Regresar DataFrame
     return data

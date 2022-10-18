@@ -103,22 +103,23 @@ def graph_dddu(evol, estadisticas_mad):
 
     return fig.show()
 
+
 def graph_bars(dispositoneffect):
+    # Filtrar resultados de disposition effect
+    dispositoneffect = dispositoneffect["resultados"]["dataframe"]
+    # Dejar solo los datos que necesitamos
+    df = dispositoneffect[['status_quo', 'aversion_perdida', 'sensibilidad_decreciente']]
 
-    ocurrencias = dispositoneffect.ocurrencias[0]
-
-    df = dispositoneffect[['status_quo','aversion_perdida', 'sensibilidad_decreciente']]
-    
-    #nombres columnas
+    # nombres columnas
     a = list(df.columns)
-    
-    # valores
-    sq = df['status_quo'].apply(lambda x: float("".join([i for i in x if i.isdigit()]))/10000)
-    ap = df['aversion_perdida'].apply(lambda x: float("".join([i for i in x if i.isdigit()]))/10000)
-    so = df['sensibilidad_decreciente'].apply(lambda x: float("".join([i for i in x if i.isdigit()]))/10000)
 
-    fig = go.Figure([go.Bar(x=a, y=[sq[0]*ocurrencias, ap[0]*ocurrencias, so[0]*ocurrencias])])
+    # valores
+    sq = df['status_quo'].apply(lambda x: float("".join([i for i in x if i.isdigit()])) / 10000)
+    ap = df['aversion_perdida'].apply(lambda x: float("".join([i for i in x if i.isdigit()])) / 10000)
+    so = df['sensibilidad_decreciente'].apply(lambda x: float("".join([i for i in x if i.isdigit()])) / 10000)
+
+    fig = go.Figure([go.Bar(x=a, y=[sq[0], ap[0], so[0]])])
     fig.update_layout(title='Disposition Effect',
-                        xaxis_title='Disposition Effect')
+                      xaxis_title='Disposition Effect')
 
     return fig.show()
