@@ -212,7 +212,7 @@ def f_estadisticas_mad(evolucion):
 def get_MT5_price(symbol, start_date, end_date):
     # Inicializar MT5
     if not MT5.initialize():
-        print("initialize() failed, error code =", mt5.last_error())
+        print("initialize() failed, error code =", MT5.last_error())
         quit()
 
     # Cambiar timezone a UTC
