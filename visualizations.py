@@ -107,7 +107,7 @@ def graph_bars(dispositoneffect):
 
     ocurrencias = dispositoneffect.ocurrencias[0]
 
-    df = dispositoneffect[['status_quo','aversion_perdida', 'sesibilidad_decreciente']]
+    df = dispositoneffect[['status_quo','aversion_perdida', 'sensibilidad_decreciente']]
     
     #nombres columnas
     a = list(df.columns)
@@ -115,7 +115,7 @@ def graph_bars(dispositoneffect):
     # valores
     sq = df['status_quo'].apply(lambda x: float("".join([i for i in x if i.isdigit()]))/10000)
     ap = df['aversion_perdida'].apply(lambda x: float("".join([i for i in x if i.isdigit()]))/10000)
-    so = df['sesibilidad_decreciente'].apply(lambda x: float("".join([i for i in x if i.isdigit()]))/10000)
+    so = df['sensibilidad_decreciente'].apply(lambda x: float("".join([i for i in x if i.isdigit()]))/10000)
 
     fig = go.Figure([go.Bar(x=a, y=[sq[0]*ocurrencias, ap[0]*ocurrencias, so[0]*ocurrencias])])
     fig.update_layout(title='Disposition Effect',
