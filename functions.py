@@ -4,7 +4,9 @@ import numpy as np
 import warnings
 import datetime
 from typing import Optional
-
+from datetime import datetime, timedelta
+import MetaTrader5 as MT5
+import pytz
 
 # Archivo para leer xlsx de MT5 o MT4
 def f_leer_archivo(param_archivo: str) -> pd.DataFrame:
@@ -22,13 +24,13 @@ def f_leer_archivo(param_archivo: str) -> pd.DataFrame:
     # Quitar rows que no necesitamos, quitando aquellas que no afectan la posicion, de ordenes para adelante (español o ingles)
     # Metratrader 5
     if np.argmax(data.iloc[:, 0].values == "Orders") != 0 or np.argmax(data.iloc[:, 0].values == "Órdenes") != 0:
-        data = data.iloc[:np.argmax(data.iloc[:, 0].values == "Orders"), 0:-2] \
+        data = data.iloc[:np.argmax(data.iloc[:, 0].values == "Orders"), 0:-3] \
             if sum(data.iloc[:, 0].values == "Orders") == 1 \
-            else data.iloc[:np.argmax(data.iloc[:, 0].values == "Órdenes"), 0:-2]
+            else data.iloc[:np.argmax(data.iloc[:, 0].values == "Órdenes"), 0:-3]
 
     # Metatrader 4
     else:
-        data = data.iloc[:-sum([type(i) == float for i in data.iloc[:, 0].values]), 0:-2]
+        data = data.iloc[:-sum([type(i) == float for i in data.iloc[:, 0].values]), 0:-3]
 
     # Regresar DataFrame
     return data
@@ -206,3 +208,179 @@ def f_estadisticas_mad(evolucion):
     df["drawnup_capi"] = [drawn_up, "Máxima ganancia flotante registrada"]
     
     return df.T
+
+def get_MT5_price(symbol, start_date, end_date):
+    # Inicializar MT5
+    if not MT5.initialize():
+        print("initialize() failed, error code =", mt5.last_error())
+        quit()
+
+    # Cambiar timezone a UTC
+    timezone = pytz.timezone("Etc/UTC")
+
+    # Crear fecha de inicio y final
+    year_1, month_1, day_1 = start_date.year, start_date.month, start_date.day
+    utc_from = datetime(year_1, month_1, day_1, tzinfo=timezone)
+    year_2, month_2, day_2 = end_date.year, end_date.month, end_date.day
+    utc_to = datetime(year_2, month_2, day_2, tzinfo=timezone)
+
+    # get bars from USDJPY M5 within the interval of 2020.01.10 00:00 - 2020.01.11 13:00 in UTC time zone
+    rates = MT5.copy_rates_range(symbol.upper(), MT5.TIMEFRAME_M1, utc_from, utc_to)
+    # cerrar conexion
+    MT5.shutdown()
+
+    # crear DF
+    rates_frame = pd.DataFrame(rates)
+    rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
+
+    # Encontrar precio de cierre mas cercano a la fecha final
+    try:
+        price = \
+        rates_frame.iloc[np.argmin(abs(rates_frame["time"] - datetime.strptime(str(end_date), "%Y-%m-%d %H:%M:%S")))][
+            "close"]
+    except:
+        price = 0
+
+    return price
+
+# Funcion para obtener el % de sesgos cognitivos
+def f_be_de(data: pd.DataFrame, bool_sensibilidad_dec: Optional[bool] = True):
+    # Obtener Operaciones con Profit
+    with_profit = data[data["Profit"] > 0]
+
+    # Lista temporal
+    temp_list = []
+
+    # Iterar cada caso para ver cuales fueron cerrados cuando una operacion con ganancia estaba abierta
+    for i in with_profit.index:
+        # Seleccionar caso i de profit
+        profit_case = with_profit.loc[i]
+        # Filtrar casos que estuvieron abiertos al mismo tiempo que caso i
+        temp = data[(data["Opentime"] <= profit_case["Closetime"]) & (data["Closetime"] >= profit_case["Closetime"])]
+        # Quitar simolos que no traen info
+        temp = temp[(temp["Symbol"] != "GOLD") & (temp["Symbol"] != "SILVER")]
+        # Agregar ancla como columna
+        temp["Ancla"] = profit_case["Closetime"]
+        temp["Symbol_Ancla"] = profit_case["Symbol"]
+        temp["Type_Ancla"] = profit_case["Type"]
+        temp["Volumen_Ancla"] = profit_case["Volume"]
+        temp["Precio_del_Ancla"] = profit_case["Closeprice"]
+        temp["Profit_Ancla"] = profit_case["Profit"]
+        temp["n_Ancla"] = [i] * len(temp)
+        temp["num_Ancla"] = list(range(1, len(temp) + 1))
+        # Append a lista temporal
+        temp_list.append(temp)
+
+    # Hacer data frame
+    open_pos = pd.concat(temp_list, ignore_index=True)
+
+    temp_list = []
+    # Obtener el precio de x operacion en ancla
+    for i in range(len(open_pos)):
+        temp_list.append(get_MT5_price(open_pos["Symbol"][i], open_pos["Opentime"][i], open_pos["Ancla"][i]))
+
+    open_pos["Precio_en_Ancla"] = temp_list
+
+    # Definir listas vacias
+    dic_ocurrencias = [{"cantidad": len(open_pos)}]
+    status_quo = []
+    aversion_perdida = []
+    sensibilidad = []
+
+    # iterar para encontrar sesgoss en x operaciones
+    for index in range(len(open_pos)):
+        # Datos del Ancla
+        fecha_ancla = open_pos["Ancla"][index]
+        precio_ancla = open_pos["Precio_del_Ancla"][index]
+        simbolo_ancla = open_pos["Symbol_Ancla"][index]
+        direccion_ancla = open_pos["Type_Ancla"][index]
+        volumen_ancla = open_pos["Volumen_Ancla"][index]
+        profit_ancla = open_pos["Profit_Ancla"][index]
+        # Datos de Ocurrencia
+        precio_occ_init = open_pos["Openprice"][index]
+        precio_occ = open_pos["Precio_en_Ancla"][index]
+        simbolo_occ = open_pos["Symbol"][index]
+        direccion_occ = open_pos["Type"][index]
+        volumen_occ = open_pos["Volume"][index]
+        # Encontrar profit, si es buy entonces el de abajo, si no, es al contrario
+        profit_occ = (precio_occ - precio_occ_init) * float(volumen_occ) * f_pip_size(simbolo_occ)
+        profit_occ = profit_occ if direccion_occ == "Buy" else -profit_occ
+        # Profit acumulado en t
+        profit_acm = open_pos["profit_acm"][index]
+        # Encontrar el ancla
+        ancla = open_pos["n_Ancla"][index]
+        # contar cantidad
+        cantidad = max(open_pos[open_pos["n_Ancla"] == ancla]["num_Ancla"])
+        # Llenar diccionario con las caracteristicas de cada ocurrencia
+        temp_ocurrencias = {
+            "timestamp": fecha_ancla,
+            "operaciones": {
+                "ganadoras": {
+                    "instrumento": simbolo_ancla,
+                    "volumen": volumen_ancla,
+                    "sentido": direccion_ancla,
+                    "profit_ganadora": profit_ancla
+                },
+                "perdedoras": {
+                    "instrumento": simbolo_occ,
+                    "volumen": volumen_occ,
+                    "sentido": direccion_occ,
+                    "profit_perdedora": profit_occ
+                }
+            },
+            "ratio_cp_profit_acm": abs(profit_occ / profit_acm),
+            "ratio_cg_profit_acm": abs(profit_ancla / profit_acm),
+            "ratio_cp_cg": abs(profit_occ / profit_ancla)
+        }
+
+        # Ver que numero de ocurrencia es el ancla
+        ocurrencia_ancla = open_pos["num_Ancla"][index]
+        # copiar n ocurrencia a diccionario final
+        temp_2 = {
+            f"ocurrencia_{ocurrencia_ancla}": temp_ocurrencias
+        }
+
+        dic_ocurrencias.append(temp_2)
+
+        # Sacar status quo
+        sq = abs(profit_occ / profit_acm) < abs(profit_ancla / profit_acm)
+        status_quo.append(sq)
+
+        # Sacar aversion perdida
+        ap = abs(profit_occ / profit_ancla) > 2
+        aversion_perdida.append(ap)
+
+        # Sacar sensibilidad decreciente en %, es decir de n operaciones
+        if index > 0 and index < len(with_profit):
+            sensibilidad.append(sum([
+                with_profit["profit_acm"].values[index] < with_profit["profit_acm"].values[index - 1],
+                with_profit["Profit"].values[index - 1] > with_profit["Profit"].values[index] and \
+                open_pos["Profit"].values[index - 1] > open_pos["Profit"].values[index],
+                open_pos["Profit"].values[index - 1] / with_profit["Profit"].values[index - 1] > 2
+            ]) >= 2)
+
+    # Sacar sensibilidad decreciente en caso de que se quiera valor si o no de la ultima operacion
+    if bool_sensibilidad_dec:
+        sensibilidad = sum([
+            with_profit["profit_acm"].values[0] < with_profit["profit_acm"].values[-1],
+            with_profit["Profit"].values[-1] > with_profit["Profit"].values[0] and \
+            open_pos["Profit"].values[-1] > open_pos["Profit"].values[0],
+            open_pos["Profit"].values[-1] / with_profit["Profit"].values[-1] > 2
+        ]) >= 2
+
+    # Definir df
+    dataframe = pd.DataFrame.from_dict({
+        "ocurrencias": [len(open_pos)],
+        "status_quo": [f"{sum(status_quo) / len(status_quo) * 100:.2f} %"],
+        "aversion_perdida": [f"{sum(aversion_perdida) / len(aversion_perdida) * 100:.2f} %"],
+        "sensibilidad_decreciente": ["Si" if sensibilidad else "No"] if bool_sensibilidad_dec \
+            else [f"{sum(sensibilidad) / len(sensibilidad) * 100:.2f} %"],
+    })
+
+    # Desempacar valores para que pase de lista a diccionario
+    ocurrencias_final = {}
+    for j in range(len(dic_ocurrencias)):
+        ocurrencias_final.update(**dic_ocurrencias[j])
+
+    # Regresar resultado
+    return {"ocurrencias": ocurrencias_final, "resultados": {"dataframe": dataframe}}
